@@ -37,7 +37,18 @@ one for each request based on the live Shizuku state (`RoutingPolicy`):
 | Apply emoji system-wide | B (root module) | B (root module) |
 
 Overlays cannot replace the emoji font, and the Shizuku shell user cannot write to
-`/system`, so system emoji always go through a root module.
+`/system`, so system emoji always go through a root module. The module also:
+
+- removes emoji fonts that Google Play system updates install in `/data/fonts`. On
+  Android 12+ these override `/system/fonts`, which is the most common reason an emoji
+  module seems to do nothing. This runs at install time and again on every boot
+  (`post-fs-data.sh`).
+- refreshes Google Play services' downloadable emoji cache, which Gboard and many
+  messengers use (`service.sh`).
+- warns on KernelSU/APatch that a mount (overlay) module is needed for `/system` files.
+
+The **System → Diagnose emoji** button (Shizuku, read-only) shows whether the module
+font is mounted and whether an updated emoji font is overriding it.
 
 ## iOS-style emoji
 

@@ -163,6 +163,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun commandFontDump() = runCommand { OverlayCommands.fontDump() }
 
+    fun commandEmojiDiagnostics() = runCommand { OverlayCommands.emojiDiagnostics() }
+
     /** Reloads both lists from storage; [select] becomes the selection of its kind. */
     private suspend fun reload(select: ImportedFont? = null) {
         val all = router.renderer.loadAll()

@@ -121,6 +121,8 @@ class ThemeExportBackend(
             }
             text("module.prop", MagiskModuleTemplate.moduleProp(emoji.name, appVersion))
             text("customize.sh", MagiskModuleTemplate.customizeSh)
+            text("post-fs-data.sh", MagiskModuleTemplate.postFsDataSh)
+            text("service.sh", MagiskModuleTemplate.serviceSh)
             text("META-INF/com/google/android/update-binary", MagiskModuleTemplate.updateBinary)
             text("META-INF/com/google/android/updater-script", MagiskModuleTemplate.UPDATER_SCRIPT)
             zip.putNextEntry(ZipEntry(MagiskModuleTemplate.EMOJI_PATH))

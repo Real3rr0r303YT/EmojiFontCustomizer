@@ -437,8 +437,12 @@ private fun ExportScreen(ui: UiState, viewModel: MainViewModel) {
             RouteBanner(viewModel.route(RouteRequest.APPLY_EMOJI_SYSTEM))
             Text(
                 "Builds a Magisk / KernelSU / APatch module that replaces NotoColorEmoji.ttf " +
-                    "(and Samsung/HTC emoji files if present). Flash it in your root manager and reboot. " +
-                    "Apps that bundle their own emoji (e.g. WhatsApp) may keep theirs.",
+                    "(and Samsung/HTC emoji files if present), removes emoji fonts that Google Play " +
+                    "updates put in /data/fonts (they override /system on Android 12+) and refreshes " +
+                    "the Play services emoji cache used by Gboard and many messengers. " +
+                    "Flash it in your root manager and reboot. Apps that bundle their own emoji " +
+                    "(e.g. WhatsApp) may keep theirs. Shizuku cannot do this: its shell user " +
+                    "cannot write to /system or /data/fonts.",
                 style = MaterialTheme.typography.bodySmall,
             )
             emoji?.warning?.let {
@@ -512,6 +516,16 @@ private fun OverlayControls(ui: UiState, viewModel: MainViewModel) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton(onClick = viewModel::commandList, enabled = !ui.running) { Text("List fonts") }
         OutlinedButton(onClick = viewModel::commandFontDump, enabled = !ui.running) { Text("cmd font dump") }
+    }
+    InfoCard("System emoji not changing?") {
+        Text(
+            "Runs a read-only check. If NotoColorEmoji.ttf in /system/fonts still has the stock size, " +
+                "the root module is not mounted (on KernelSU/APatch install a mount/overlay module). " +
+                "If an emoji font is listed under updated fonts, a Google Play update overrides the " +
+                "system font – the module removes it on the next boot.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Button(onClick = viewModel::commandEmojiDiagnostics, enabled = !ui.running) { Text("Diagnose emoji") }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(onClick = viewModel::commandEnable, enabled = !ui.running && ui.overlayPackage.isNotEmpty()) {

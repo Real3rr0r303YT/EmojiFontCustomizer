@@ -63,6 +63,17 @@ object OverlayCommands {
     /** Dumps the updatable-font state (Android 12+). Read-only. */
     fun fontDump(): String = "cmd font dump"
 
+    /**
+     * Read-only check of why custom system emoji might not show up: the Android version,
+     * the emoji files in /system/fonts (a module-provided font shows its own size there
+     * only if the module is actually mounted) and emoji fonts that Google Play updates
+     * installed in /data/fonts, which override /system/fonts.
+     */
+    fun emojiDiagnostics(): String =
+        "echo \"Android \$(getprop ro.build.version.release) (SDK \$(getprop ro.build.version.sdk))\"; " +
+            "echo '--- /system/fonts'; ls -l /system/fonts 2>&1 | grep -i emoji; " +
+            "echo '--- updated fonts (cmd font dump)'; cmd font dump 2>&1 | grep -i emoji || echo 'none'"
+
     private fun userArg(user: Int?): String {
         if (user == null) return ""
         require(user >= 0) { "Invalid user id: $user" }

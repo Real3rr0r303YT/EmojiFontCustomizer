@@ -47,4 +47,14 @@ class MagiskModuleTemplateTest {
         assertTrue(MagiskModuleTemplate.customizeSh.contains("SamsungColorEmoji.ttf"))
         assertTrue(MagiskModuleTemplate.customizeSh.contains("\$MODPATH/system/fonts/NotoColorEmoji.ttf"))
     }
+
+    @Test
+    fun bootScriptsHandleUpdatedEmojiFonts() {
+        assertTrue(MagiskModuleTemplate.postFsDataSh.contains("find /data/fonts/files"))
+        assertTrue(MagiskModuleTemplate.customizeSh.contains("find /data/fonts/files"))
+        // Must never wipe the updatable-font root directory itself.
+        assertTrue(MagiskModuleTemplate.postFsDataSh.contains("if [ \"\$d\" = /data/fonts/files ]"))
+        assertTrue(MagiskModuleTemplate.serviceSh.contains("sys.boot_completed"))
+        assertTrue(MagiskModuleTemplate.serviceSh.contains(MagiskModuleTemplate.GMS_FONT_CACHE))
+    }
 }
