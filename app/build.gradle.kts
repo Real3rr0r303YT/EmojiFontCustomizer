@@ -13,8 +13,13 @@ android {
         applicationId = "de.real3rr0r303yt.emojifontcustomizer"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.1.1"
+        versionCode = 3
+        versionName = "0.2.0"
+
+        // Set `donationUrl` in gradle.properties (or with -PdonationUrl=...) to show the donate button.
+        val donationUrl = providers.gradleProperty("donationUrl").getOrElse("")
+        buildConfigField("String", "DONATION_URL", "\"$donationUrl\"")
+        buildConfigField("String", "SOURCE_URL", "\"https://github.com/Real3rr0r303YT/EmojiFontCustomizer\"")
     }
 
     buildTypes {
@@ -35,11 +40,37 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+}
+
+/** Ships the repository's GPL-3.0 LICENSE inside the APK so the app can show it. */
+abstract class CopyLicenseTask : DefaultTask() {
+    @get:InputFile
+    abstract val licenseFile: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun copy() {
+        val out = outputDir.get().asFile.apply { mkdirs() }
+        licenseFile.get().asFile.copyTo(File(out, "LICENSE"), overwrite = true)
+    }
+}
+
+val copyLicense = tasks.register<CopyLicenseTask>("copyLicenseToAssets") {
+    licenseFile.set(rootProject.layout.projectDirectory.file("LICENSE"))
+}
+
+androidComponents {
+    onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(copyLicense, CopyLicenseTask::outputDir)
     }
 }
 

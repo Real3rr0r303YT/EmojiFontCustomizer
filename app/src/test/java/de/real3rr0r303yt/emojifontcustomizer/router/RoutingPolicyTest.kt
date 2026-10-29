@@ -64,4 +64,13 @@ class RoutingPolicyTest {
             assertTrue(decision.fallback)
         }
     }
+
+    @Test
+    fun systemEmojiAlwaysUsesModuleExport() {
+        (notReadyStates + ShizukuState.Ready(13, 0)).forEach { state ->
+            val decision = RoutingPolicy.decide(RouteRequest.APPLY_EMOJI_SYSTEM, state)
+            assertEquals(BackendId.B_EXPORT, decision.backend)
+            assertFalse(decision.fallback)
+        }
+    }
 }

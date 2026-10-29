@@ -21,6 +21,7 @@ package de.real3rr0r303yt.emojifontcustomizer.backend.b
 
 import android.content.Context
 import android.net.Uri
+import de.real3rr0r303yt.emojifontcustomizer.backend.a.FontKind
 import de.real3rr0r303yt.emojifontcustomizer.backend.a.ImportedFont
 import de.real3rr0r303yt.emojifontcustomizer.backend.a.InAppRendererBackend
 import org.json.JSONArray
@@ -32,13 +33,13 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 /**
- * Backend B: bundles imported fonts into a portable font pack (`.zip`) and reads
- * such packs back in.
+ * Backend B: bundles imported fonts and emoji packs into portable packs (`.zip`),
+ * reads such packs back in, and builds Magisk/KernelSU modules for emoji packs.
  *
  * Pack layout:
  * ```
- * font-pack.json      manifest (name, version, files with SHA-256)
- * fonts/<file>.ttf    the font files
+ * font-pack.json      manifest (name, type, files with kind + SHA-256)
+ * fonts/<file>.ttf    the font / emoji files
  * ```
  * The layout is deliberately simple so OEM theme tools or Magisk/overlay
  * templates can consume it without this app.
@@ -60,6 +61,7 @@ class ThemeExportBackend(
                     JSONObject()
                         .put("path", "$FONT_DIR${font.file.name}")
                         .put("name", font.name)
+                        .put("kind", font.kind.name.lowercase())
                         .put("sha256", sha256(font.file))
                         .put("size", font.file.length()),
                 )
@@ -71,6 +73,7 @@ class ThemeExportBackend(
                 .put("format", FORMAT)
                 .put("formatVersion", FORMAT_VERSION)
                 .put("name", packName)
+                .put("type", packType(fonts))
                 .put("createdAt", System.currentTimeMillis())
                 .put("files", files)
             zip.putNextEntry(ZipEntry(MANIFEST))
@@ -90,15 +93,48 @@ class ThemeExportBackend(
                 if (!entry.isDirectory && name.startsWith(FONT_DIR) &&
                     File(name).extension.lowercase() in InAppRendererBackend.FONT_EXTENSIONS
                 ) {
-                    // Only the base name is used, so "../" entries cannot escape fontDir.
+                    // Only the base name is used, so "../" entries cannot escape app storage.
+                    // The kind is re-detected from the font tables rather than trusted from the manifest.
                     imported += renderer.import(File(name).name, zip)
                 }
                 zip.closeEntry()
             }
         }
-        require(imported.isNotEmpty()) { "The pack does not contain any .ttf/.otf fonts." }
+        require(imported.isNotEmpty()) { "The pack does not contain any .ttf/.otf/.ttc fonts." }
         return imported
     }
+
+    /**
+     * Writes a flashable Magisk / KernelSU / APatch module that replaces the system
+     * emoji font with [emoji]. Requires root on the target device.
+     */
+    fun exportMagiskModule(emoji: ImportedFont, appVersion: String, target: Uri) {
+        require(emoji.kind == FontKind.EMOJI) { "${emoji.name} is not an emoji pack." }
+        require(emoji.info.androidRenderable) { emoji.warning ?: "Android cannot render this emoji font." }
+        val out = context.contentResolver.openOutputStream(target)
+            ?: throw IllegalArgumentException("Cannot write $target")
+        ZipOutputStream(out.buffered()).use { zip ->
+            fun text(path: String, content: String) {
+                zip.putNextEntry(ZipEntry(path))
+                zip.write(content.toByteArray())
+                zip.closeEntry()
+            }
+            text("module.prop", MagiskModuleTemplate.moduleProp(emoji.name, appVersion))
+            text("customize.sh", MagiskModuleTemplate.customizeSh)
+            text("META-INF/com/google/android/update-binary", MagiskModuleTemplate.updateBinary)
+            text("META-INF/com/google/android/updater-script", MagiskModuleTemplate.UPDATER_SCRIPT)
+            zip.putNextEntry(ZipEntry(MagiskModuleTemplate.EMOJI_PATH))
+            emoji.file.inputStream().use { it.copyTo(zip) }
+            zip.closeEntry()
+        }
+    }
+
+    private fun packType(fonts: List<ImportedFont>): String =
+        when (fonts.map { it.kind }.toSet()) {
+            setOf(FontKind.EMOJI) -> "emoji"
+            setOf(FontKind.TEXT) -> "font"
+            else -> "mixed"
+        }
 
     private fun sha256(file: File): String {
         val digest = MessageDigest.getInstance("SHA-256")
@@ -115,7 +151,7 @@ class ThemeExportBackend(
 
     companion object {
         const val FORMAT = "emojifontcustomizer.fontpack"
-        const val FORMAT_VERSION = 1
+        const val FORMAT_VERSION = 2
         const val MANIFEST = "font-pack.json"
         const val FONT_DIR = "fonts/"
         const val MIME_TYPE = "application/zip"

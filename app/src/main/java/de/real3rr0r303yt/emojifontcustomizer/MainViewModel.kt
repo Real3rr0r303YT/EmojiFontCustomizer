@@ -21,8 +21,10 @@ package de.real3rr0r303yt.emojifontcustomizer
 
 import android.app.Application
 import android.net.Uri
+import androidx.compose.ui.text.font.FontFamily
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import de.real3rr0r303yt.emojifontcustomizer.backend.a.FontKind
 import de.real3rr0r303yt.emojifontcustomizer.backend.a.ImportedFont
 import de.real3rr0r303yt.emojifontcustomizer.backend.c.OverlayCommands
 import de.real3rr0r303yt.emojifontcustomizer.backend.c.ShellResult
@@ -31,6 +33,7 @@ import de.real3rr0r303yt.emojifontcustomizer.router.BackendRouter
 import de.real3rr0r303yt.emojifontcustomizer.router.RouteDecision
 import de.real3rr0r303yt.emojifontcustomizer.router.RouteRequest
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,7 +43,11 @@ import kotlinx.coroutines.withContext
 
 data class UiState(
     val fonts: List<ImportedFont> = emptyList(),
-    val selected: ImportedFont? = null,
+    val emojiPacks: List<ImportedFont> = emptyList(),
+    val selectedFont: ImportedFont? = null,
+    val selectedEmoji: ImportedFont? = null,
+    /** Selected text font with the selected emoji pack as fallback. */
+    val previewFamily: FontFamily = FontFamily.Default,
     val sampleText: String = "The quick brown fox 🦊 jumps over the lazy dog 🐶",
     val fontSizeSp: Float = 28f,
     val overlayPackage: String = "",
@@ -58,12 +65,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val shizukuState: StateFlow<ShizukuState> = router.shizukuState
 
+    private var previewJob: Job? = null
+
     init {
         router.start()
-        viewModelScope.launch {
-            val fonts = withContext(Dispatchers.IO) { router.renderer.loadAll() }
-            _ui.update { it.copy(fonts = fonts, selected = fonts.firstOrNull()) }
-        }
+        background(success = null) { reload() }
     }
 
     override fun onCleared() {
@@ -72,7 +78,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun route(request: RouteRequest): RouteDecision = router.route(request)
 
-    fun select(font: ImportedFont?) = _ui.update { it.copy(selected = font) }
+    fun selectFont(font: ImportedFont?) {
+        _ui.update { it.copy(selectedFont = font) }
+        updatePreview()
+    }
+
+    fun selectEmoji(pack: ImportedFont?) {
+        _ui.update { it.copy(selectedEmoji = pack) }
+        updatePreview()
+    }
 
     fun setSampleText(text: String) = _ui.update { it.copy(sampleText = text) }
 
@@ -82,24 +96,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun consumeMessage() = _ui.update { it.copy(message = null) }
 
-    fun importFont(uri: Uri) = background("Font imported") {
+    fun showMessage(message: String) = _ui.update { it.copy(message = message) }
+
+    /** Imports a font file; emoji packs are detected automatically. */
+    fun importFont(uri: Uri) = background(success = null) {
         val font = router.renderer.import(uri)
-        reloadFonts(select = font)
+        reload(select = font)
+        val what = if (font.kind == FontKind.EMOJI) "Emoji pack" else "Font"
+        "$what imported: ${font.name}" + (font.warning?.let { "\n$it" } ?: "")
     }
 
-    fun deleteSelected() = background("Font deleted") {
-        _ui.value.selected?.let { router.renderer.delete(it) }
-        reloadFonts(select = null)
+    fun delete(font: ImportedFont) = background("Deleted ${font.name}") {
+        router.renderer.delete(font)
+        reload()
     }
 
-    fun exportPack(target: Uri) = background("Font pack exported") {
-        val fonts = _ui.value.selected?.let { listOf(it) } ?: _ui.value.fonts
+    /** Exports the selected font/emoji pack of [kind], or all of that kind if none is selected. */
+    fun exportPack(kind: FontKind, target: Uri) = background("Pack exported") {
+        val state = _ui.value
+        val (selected, all) = when (kind) {
+            FontKind.TEXT -> state.selectedFont to state.fonts
+            FontKind.EMOJI -> state.selectedEmoji to state.emojiPacks
+        }
+        val fonts = selected?.let { listOf(it) } ?: all
         router.exporter.exportPack(fonts, packName = fonts.first().name, target = target)
     }
 
-    fun importPack(source: Uri) = background("Font pack imported") {
+    fun exportMagiskModule(target: Uri) = background("Magisk/KernelSU module exported – flash it in your root manager") {
+        val emoji = _ui.value.selectedEmoji ?: throw IllegalStateException("Select an emoji pack first.")
+        router.exporter.exportMagiskModule(emoji, BuildConfig.VERSION_NAME, target)
+    }
+
+    fun importPack(source: Uri) = background(success = null) {
         val imported = router.exporter.importPack(source)
-        reloadFonts(select = imported.first())
+        reload(select = imported.first())
+        "Imported ${imported.size} file(s) from pack"
     }
 
     fun requestShizukuPermission() = router.shizuku.requestPermission()
@@ -110,7 +141,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val command = try {
             build()
         } catch (e: IllegalArgumentException) {
-            _ui.update { it.copy(message = e.message) }
+            showMessage(e.message ?: "Invalid input")
             return
         }
         viewModelScope.launch {
@@ -132,23 +163,50 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun commandFontDump() = runCommand { OverlayCommands.fontDump() }
 
-    private suspend fun reloadFonts(select: ImportedFont?) {
-        val fonts = router.renderer.loadAll()
-        val selected = fonts.firstOrNull { it.file == select?.file } ?: fonts.firstOrNull()
+    /** Reloads both lists from storage; [select] becomes the selection of its kind. */
+    private suspend fun reload(select: ImportedFont? = null) {
+        val all = router.renderer.loadAll()
+        val fonts = all.filter { it.kind == FontKind.TEXT }
+        val emoji = all.filter { it.kind == FontKind.EMOJI }
         withContext(Dispatchers.Main) {
-            _ui.update { it.copy(fonts = fonts, selected = selected) }
+            _ui.update { state ->
+                fun pick(list: List<ImportedFont>, current: ImportedFont?, kind: FontKind): ImportedFont? {
+                    val wanted = if (select?.kind == kind) select else current
+                    return list.firstOrNull { it.file == wanted?.file }
+                        ?: if (select?.kind == kind) list.firstOrNull() else null
+                }
+                state.copy(
+                    fonts = fonts,
+                    emojiPacks = emoji,
+                    selectedFont = pick(fonts, state.selectedFont, FontKind.TEXT),
+                    selectedEmoji = pick(emoji, state.selectedEmoji, FontKind.EMOJI),
+                )
+            }
+            updatePreview()
         }
     }
 
-    private fun background(success: String, block: suspend () -> Unit) {
+    private fun updatePreview() {
+        val state = _ui.value
+        previewJob?.cancel()
+        previewJob = viewModelScope.launch {
+            val family = withContext(Dispatchers.IO) {
+                router.renderer.previewFamily(state.selectedFont, state.selectedEmoji)
+            }
+            _ui.update { it.copy(previewFamily = family) }
+        }
+    }
+
+    /** Runs [block] off the main thread; its returned text (or [success]) is shown as a snackbar. */
+    private fun background(success: String?, block: suspend () -> Any?) {
         viewModelScope.launch {
             val message = try {
-                withContext(Dispatchers.IO) { block() }
-                success
+                val result = withContext(Dispatchers.IO) { block() }
+                (result as? String) ?: success
             } catch (e: Exception) {
                 "Error: ${e.message ?: e.javaClass.simpleName}"
             }
-            _ui.update { it.copy(message = message) }
+            if (message != null) showMessage(message)
         }
     }
 }

@@ -38,6 +38,9 @@ enum class RouteRequest {
 
     /** Apply a font or overlay system-wide. */
     APPLY_SYSTEM,
+
+    /** Replace the system emoji font. */
+    APPLY_EMOJI_SYSTEM,
 }
 
 data class RouteDecision(
@@ -56,6 +59,14 @@ object RoutingPolicy {
 
         RouteRequest.EXPORT_PACK ->
             RouteDecision(BackendId.B_EXPORT, "Font packs are built from app storage.")
+
+        // Overlays cannot swap the emoji font and Shizuku's shell user cannot write
+        // /system, so system emoji always go through a root module built by Backend B.
+        RouteRequest.APPLY_EMOJI_SYSTEM ->
+            RouteDecision(
+                BackendId.B_EXPORT,
+                "System emoji are replaced with a Magisk/KernelSU module (root required).",
+            )
 
         RouteRequest.APPLY_SYSTEM -> when (shizuku) {
             is ShizukuState.Ready ->

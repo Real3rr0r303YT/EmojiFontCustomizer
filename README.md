@@ -3,8 +3,17 @@
 [![Android CI](https://github.com/Real3rr0r303YT/EmojiFontCustomizer/actions/workflows/android.yml/badge.svg)](https://github.com/Real3rr0r303YT/EmojiFontCustomizer/actions/workflows/android.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
-An Android app for previewing, packaging and applying custom fonts and emoji fonts.
+An Android app for previewing, packaging and applying custom fonts and emoji packs.
 It is written in Kotlin with Jetpack Compose.
+
+**Features**
+- Text fonts and emoji packs are managed separately. Emoji fonts are detected
+  automatically from their color tables (`CBDT`, `COLR`, `sbix`, `SVG`).
+- Live preview that combines the chosen text font with the chosen emoji pack (Android 10+).
+- Export of font packs and emoji packs, plus a **Magisk / KernelSU / APatch module**
+  that replaces the system emoji font (root).
+- System font overlays through **Shizuku** (`cmd overlay`).
+- An in-app *Open Source / GPL-3.0* page with the full license text, and an optional donate button.
 
 - **Package:** `de.real3rr0r303yt.emojifontcustomizer`
 - **minSdk:** 26 (Android 8.0) · **targetSdk:** 35
@@ -16,15 +25,33 @@ one for each request based on the live Shizuku state (`RoutingPolicy`):
 
 | Backend | Package | Purpose |
 |---|---|---|
-| **A · In-App Renderer** | `backend.a` | Imports `.ttf` / `.otf` files into app storage and renders them in Compose through `Typeface` → `FontFamily` for the live preview and emoji grid. |
-| **B · OEM / Theme Export** | `backend.b` | Builds portable font packs (`font-pack.json` plus `fonts/`, zipped) for OEM theme stores or overlay templates, and imports them again. |
+| **A · In-App Renderer** | `backend.a` | Imports `.ttf` / `.otf` / `.ttc` files and sorts them into text fonts and emoji packs (`FontInspector`). Renders them in Compose through `Typeface` → `FontFamily`, chaining text font and emoji pack with `Typeface.CustomFallbackBuilder`. |
+| **B · OEM / Theme Export** | `backend.b` | Builds portable font/emoji packs (`font-pack.json` plus `fonts/`, zipped) and imports them again. Also writes Magisk modules for emoji packs (`system/fonts/NotoColorEmoji.ttf`, plus OEM emoji files if the device has them). |
 | **C · Shizuku & Shell Overlays** | `backend.c` | Tracks the Shizuku binder and permission state. When Shizuku is active it runs validated shell commands such as `cmd overlay enable-exclusive --category …`, `cmd overlay disable …` and `cmd font dump`. |
 
 | Request | Shizuku ready | Shizuku not ready |
 |---|---|---|
 | Preview | A | A |
 | Export pack | B | B |
-| Apply system-wide | **C** | B (fallback, with reason shown) |
+| Apply font system-wide | **C** | B (fallback, with reason shown) |
+| Apply emoji system-wide | B (root module) | B (root module) |
+
+Overlays cannot replace the emoji font, and the Shizuku shell user cannot write to
+`/system`, so system emoji always go through a root module.
+
+## iOS-style emoji
+
+Apple Color Emoji is proprietary (© Apple), so this GPL-3.0 project does **not**
+bundle or download it. Apple's original `.ttc` also uses the `sbix` format, which
+Android cannot render; the app detects such files and shows a warning. Any
+iOS-style emoji font in an Android format (CBDT/COLR `.ttf`) can be imported,
+previewed and applied like any other emoji pack. Free alternatives are linked in the
+app: Noto Color Emoji (OFL-1.1), Twemoji (CC-BY-4.0) and OpenMoji (CC-BY-SA-4.0).
+
+## Donations
+
+Set `donationUrl` in `gradle.properties` (PayPal.me, Buy Me a Coffee, Ko-fi, …) to
+show the ❤ button in the top bar and on the About page. If it is empty, the button is hidden.
 
 ## Building
 
