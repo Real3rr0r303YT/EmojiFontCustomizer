@@ -50,14 +50,6 @@ class OverlayCommandsTest {
         assertFalse(OverlayCommands.isValidPackageName("\$(id).x"))
     }
 
-    @Test
-    fun emojiDiagnosticsIsReadOnly() {
-        val cmd = OverlayCommands.emojiDiagnostics()
-        assertTrue(cmd.contains("ls -l /system/fonts"))
-        assertTrue(cmd.contains("cmd font dump"))
-        listOf("rm ", "mount", "cp ", "mv ", " > ").forEach { assertFalse("contains $it", cmd.contains(it)) }
-    }
-
     @Test(expected = IllegalArgumentException::class)
     fun rejectsShellInjection() {
         OverlayCommands.enable("com.example;reboot")

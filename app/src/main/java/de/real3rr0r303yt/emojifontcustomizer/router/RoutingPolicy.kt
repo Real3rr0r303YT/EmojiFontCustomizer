@@ -26,6 +26,7 @@ enum class BackendId(val label: String) {
     A_RENDERER("Backend A · In-App Renderer"),
     B_EXPORT("Backend B · OEM / Theme Export"),
     C_SHIZUKU("Backend C · Shizuku & Shell Overlays"),
+    D_KEYBOARD("Backend D · Emoji keyboard"),
 }
 
 /** What the user wants to do with the selected font. */
@@ -39,7 +40,7 @@ enum class RouteRequest {
     /** Apply a font or overlay system-wide. */
     APPLY_SYSTEM,
 
-    /** Replace the system emoji font. */
+    /** Use the selected emoji pack everywhere (system emoji). */
     APPLY_EMOJI_SYSTEM,
 }
 
@@ -60,12 +61,15 @@ object RoutingPolicy {
         RouteRequest.EXPORT_PACK ->
             RouteDecision(BackendId.B_EXPORT, "Font packs are built from app storage.")
 
-        // Overlays cannot swap the emoji font and Shizuku's shell user cannot write
-        // /system, so system emoji always go through a root module built by Backend B.
+        // Without root, Android offers no way to replace the system emoji font: updated
+        // fonts must be signed by the platform, overlays cannot add fonts, and Shizuku's
+        // shell user cannot write /system or /data/fonts. The keyboard sends the pack's
+        // emoji as images instead, which works on any locked, unrooted device.
         RouteRequest.APPLY_EMOJI_SYSTEM ->
             RouteDecision(
-                BackendId.B_EXPORT,
-                "System emoji are replaced with a Magisk/KernelSU module (root required).",
+                BackendId.D_KEYBOARD,
+                "Without root, Android does not let apps replace system emoji. " +
+                    "The emoji keyboard sends your pack's emoji as images instead.",
             )
 
         RouteRequest.APPLY_SYSTEM -> when (shizuku) {

@@ -21,6 +21,8 @@ package de.real3rr0r303yt.emojifontcustomizer.ui
 
 import android.content.Intent
 import android.net.Uri
+import android.provider.Settings
+import android.view.inputmethod.InputMethodManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -91,6 +93,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.real3rr0r303yt.emojifontcustomizer.BuildConfig
 import de.real3rr0r303yt.emojifontcustomizer.MainViewModel
@@ -283,13 +286,16 @@ private fun EmojiScreen(ui: UiState, viewModel: MainViewModel) {
             )
         }
         fullWidth {
+            KeyboardCard(ui, viewModel)
+        }
+        fullWidth {
             InfoCard("iOS-style emoji") {
                 Text(
                     "Apple Color Emoji is proprietary, so it cannot ship with this GPL app. " +
                         "If you have an iOS-style emoji font in an Android format (CBDT/COLR .ttf), " +
-                        "import it above – it is recognised as an emoji pack and can be previewed, " +
-                        "exported or applied system-wide via the Export tab. Apple's original " +
-                        ".ttc (sbix format) cannot be rendered by Android.",
+                        "import it above – it is recognised as an emoji pack, previewed here and " +
+                        "used by the emoji keyboard. Apple's original .ttc (sbix format) cannot be " +
+                        "rendered by Android.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -313,6 +319,47 @@ private fun EmojiScreen(ui: UiState, viewModel: MainViewModel) {
                 }
             }
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Backend D: emoji keyboard
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun KeyboardCard(ui: UiState, viewModel: MainViewModel) {
+    val context = LocalContext.current
+    val imm = remember { context.getSystemService(InputMethodManager::class.java) }
+    var enabled by remember { mutableStateOf(false) }
+    var tryText by rememberSaveable { mutableStateOf("") }
+    LifecycleResumeEffect(Unit) {
+        enabled = imm?.enabledInputMethodList.orEmpty().any { it.packageName == context.packageName }
+        onPauseOrDispose { }
+    }
+
+    InfoCard("Emoji keyboard · no root needed") {
+        RouteBanner(viewModel.route(RouteRequest.APPLY_EMOJI_SYSTEM))
+        Text(
+            "Uses the selected emoji pack (${ui.selectedEmoji?.name ?: "none – system emoji"}). In apps that accept " +
+                "images (e.g. Telegram, Signal) emoji are sent as pictures, so others see your style. " +
+                "Elsewhere the normal emoji is inserted. The keyboard never reads what you type " +
+                "and the app has no internet access.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = {
+                context.startActivity(
+                    Intent(Settings.ACTION_INPUT_METHOD_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            }) { Text(if (enabled) "✓ Enabled" else "1. Enable") }
+            Button(onClick = { imm?.showInputMethodPicker() }, enabled = enabled) { Text("2. Switch to it") }
+        }
+        OutlinedTextField(
+            value = tryText,
+            onValueChange = { tryText = it },
+            label = { Text("Try the keyboard here") },
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -388,10 +435,6 @@ private fun ExportScreen(ui: UiState, viewModel: MainViewModel) {
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(ThemeExportBackend.MIME_TYPE)) { uri ->
             uri?.let { viewModel.exportPack(exportKind, it) }
         }
-    val moduleLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(ThemeExportBackend.MIME_TYPE)) { uri ->
-            uri?.let(viewModel::exportMagiskModule)
-        }
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(viewModel::importPack)
     }
@@ -431,27 +474,6 @@ private fun ExportScreen(ui: UiState, viewModel: MainViewModel) {
                 },
                 enabled = ui.emojiPacks.isNotEmpty(),
             ) { Text("Export emoji pack") }
-        }
-
-        InfoCard("Apply emoji system-wide (root)") {
-            RouteBanner(viewModel.route(RouteRequest.APPLY_EMOJI_SYSTEM))
-            Text(
-                "Builds a Magisk / KernelSU / APatch module that replaces NotoColorEmoji.ttf " +
-                    "(and Samsung/HTC emoji files if present), removes emoji fonts that Google Play " +
-                    "updates put in /data/fonts (they override /system on Android 12+) and refreshes " +
-                    "the Play services emoji cache used by Gboard and many messengers. " +
-                    "Flash it in your root manager and reboot. Apps that bundle their own emoji " +
-                    "(e.g. WhatsApp) may keep theirs. Shizuku cannot do this: its shell user " +
-                    "cannot write to /system or /data/fonts.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            emoji?.warning?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
-            }
-            Button(
-                onClick = { moduleLauncher.launch("${emoji?.name ?: "emoji"}-magisk-module.zip") },
-                enabled = emoji != null && emoji.info.androidRenderable,
-            ) { Text(if (emoji == null) "Select an emoji pack first" else "Export Magisk module") }
         }
 
         OutlinedButton(onClick = { importLauncher.launch(arrayOf(ThemeExportBackend.MIME_TYPE)) }) {
@@ -496,8 +518,8 @@ private fun SystemScreen(ui: UiState, shizuku: ShizukuState, viewModel: MainView
             is ShizukuState.Ready -> OverlayControls(ui, viewModel)
         }
         Text(
-            "Font overlays switch the system text font. System emoji cannot be changed via overlays – " +
-                "use the Magisk module export in the Export tab.",
+            "Overlays only switch between text fonts the system already has. Without root, system " +
+                "emoji cannot be replaced – use the emoji keyboard in the Emoji tab instead.",
             style = MaterialTheme.typography.bodySmall,
         )
     }
@@ -516,16 +538,6 @@ private fun OverlayControls(ui: UiState, viewModel: MainViewModel) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton(onClick = viewModel::commandList, enabled = !ui.running) { Text("List fonts") }
         OutlinedButton(onClick = viewModel::commandFontDump, enabled = !ui.running) { Text("cmd font dump") }
-    }
-    InfoCard("System emoji not changing?") {
-        Text(
-            "Runs a read-only check. If NotoColorEmoji.ttf in /system/fonts still has the stock size, " +
-                "the root module is not mounted (on KernelSU/APatch install a mount/overlay module). " +
-                "If an emoji font is listed under updated fonts, a Google Play update overrides the " +
-                "system font – the module removes it on the next boot.",
-            style = MaterialTheme.typography.bodySmall,
-        )
-        Button(onClick = viewModel::commandEmojiDiagnostics, enabled = !ui.running) { Text("Diagnose emoji") }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(onClick = viewModel::commandEnable, enabled = !ui.running && ui.overlayPackage.isNotEmpty()) {

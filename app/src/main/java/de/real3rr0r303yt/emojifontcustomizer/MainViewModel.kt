@@ -29,6 +29,7 @@ import de.real3rr0r303yt.emojifontcustomizer.backend.a.ImportedFont
 import de.real3rr0r303yt.emojifontcustomizer.backend.c.OverlayCommands
 import de.real3rr0r303yt.emojifontcustomizer.backend.c.ShellResult
 import de.real3rr0r303yt.emojifontcustomizer.backend.c.ShizukuState
+import de.real3rr0r303yt.emojifontcustomizer.backend.d.KeyboardPrefs
 import de.real3rr0r303yt.emojifontcustomizer.router.BackendRouter
 import de.real3rr0r303yt.emojifontcustomizer.router.RouteDecision
 import de.real3rr0r303yt.emojifontcustomizer.router.RouteRequest
@@ -40,6 +41,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 data class UiState(
     val fonts: List<ImportedFont> = emptyList(),
@@ -67,6 +69,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private var previewJob: Job? = null
 
+    /** The keyboard's saved emoji pack is restored once, on the first load. */
+    private var restoredKeyboardPack = false
+
     init {
         router.start()
         background(success = null) { reload() }
@@ -83,8 +88,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         updatePreview()
     }
 
+    /** Also makes [pack] the emoji style of the keyboard (Backend D). */
     fun selectEmoji(pack: ImportedFont?) {
         _ui.update { it.copy(selectedEmoji = pack) }
+        KeyboardPrefs.setEmojiPack(getApplication<Application>(), pack?.file)
         updatePreview()
     }
 
@@ -120,11 +127,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         val fonts = selected?.let { listOf(it) } ?: all
         router.exporter.exportPack(fonts, packName = fonts.first().name, target = target)
-    }
-
-    fun exportMagiskModule(target: Uri) = background("Magisk/KernelSU module exported – flash it in your root manager") {
-        val emoji = _ui.value.selectedEmoji ?: throw IllegalStateException("Select an emoji pack first.")
-        router.exporter.exportMagiskModule(emoji, BuildConfig.VERSION_NAME, target)
     }
 
     fun importPack(source: Uri) = background(success = null) {
@@ -163,27 +165,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun commandFontDump() = runCommand { OverlayCommands.fontDump() }
 
-    fun commandEmojiDiagnostics() = runCommand { OverlayCommands.emojiDiagnostics() }
-
     /** Reloads both lists from storage; [select] becomes the selection of its kind. */
     private suspend fun reload(select: ImportedFont? = null) {
+        val app = getApplication<Application>()
         val all = router.renderer.loadAll()
         val fonts = all.filter { it.kind == FontKind.TEXT }
         val emoji = all.filter { it.kind == FontKind.EMOJI }
+        val savedPack = if (restoredKeyboardPack) null else KeyboardPrefs.emojiPack(app)
+        restoredKeyboardPack = true
         withContext(Dispatchers.Main) {
             _ui.update { state ->
-                fun pick(list: List<ImportedFont>, current: ImportedFont?, kind: FontKind): ImportedFont? {
-                    val wanted = if (select?.kind == kind) select else current
-                    return list.firstOrNull { it.file == wanted?.file }
+                fun pick(list: List<ImportedFont>, current: File?, kind: FontKind): ImportedFont? {
+                    val wanted = if (select?.kind == kind) select?.file else current
+                    return list.firstOrNull { it.file == wanted }
                         ?: if (select?.kind == kind) list.firstOrNull() else null
                 }
                 state.copy(
                     fonts = fonts,
                     emojiPacks = emoji,
-                    selectedFont = pick(fonts, state.selectedFont, FontKind.TEXT),
-                    selectedEmoji = pick(emoji, state.selectedEmoji, FontKind.EMOJI),
+                    selectedFont = pick(fonts, state.selectedFont?.file, FontKind.TEXT),
+                    selectedEmoji = pick(emoji, state.selectedEmoji?.file ?: savedPack, FontKind.EMOJI),
                 )
             }
+            KeyboardPrefs.setEmojiPack(app, _ui.value.selectedEmoji?.file)
             updatePreview()
         }
     }

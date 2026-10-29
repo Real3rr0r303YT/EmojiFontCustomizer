@@ -34,15 +34,15 @@ import java.util.zip.ZipOutputStream
 
 /**
  * Backend B: bundles imported fonts and emoji packs into portable packs (`.zip`),
- * reads such packs back in, and builds Magisk/KernelSU modules for emoji packs.
+ * and reads such packs back in.
  *
  * Pack layout:
  * ```
  * font-pack.json      manifest (name, type, files with kind + SHA-256)
  * fonts/<file>.ttf    the font / emoji files
  * ```
- * The layout is deliberately simple so OEM theme tools or Magisk/overlay
- * templates can consume it without this app.
+ * The layout is deliberately simple so OEM theme tools or other apps can
+ * consume it without this app.
  */
 class ThemeExportBackend(
     private val context: Context,
@@ -102,33 +102,6 @@ class ThemeExportBackend(
         }
         require(imported.isNotEmpty()) { "The pack does not contain any .ttf/.otf/.ttc fonts." }
         return imported
-    }
-
-    /**
-     * Writes a flashable Magisk / KernelSU / APatch module that replaces the system
-     * emoji font with [emoji]. Requires root on the target device.
-     */
-    fun exportMagiskModule(emoji: ImportedFont, appVersion: String, target: Uri) {
-        require(emoji.kind == FontKind.EMOJI) { "${emoji.name} is not an emoji pack." }
-        require(emoji.info.androidRenderable) { emoji.warning ?: "Android cannot render this emoji font." }
-        val out = context.contentResolver.openOutputStream(target)
-            ?: throw IllegalArgumentException("Cannot write $target")
-        ZipOutputStream(out.buffered()).use { zip ->
-            fun text(path: String, content: String) {
-                zip.putNextEntry(ZipEntry(path))
-                zip.write(content.toByteArray())
-                zip.closeEntry()
-            }
-            text("module.prop", MagiskModuleTemplate.moduleProp(emoji.name, appVersion))
-            text("customize.sh", MagiskModuleTemplate.customizeSh)
-            text("post-fs-data.sh", MagiskModuleTemplate.postFsDataSh)
-            text("service.sh", MagiskModuleTemplate.serviceSh)
-            text("META-INF/com/google/android/update-binary", MagiskModuleTemplate.updateBinary)
-            text("META-INF/com/google/android/updater-script", MagiskModuleTemplate.UPDATER_SCRIPT)
-            zip.putNextEntry(ZipEntry(MagiskModuleTemplate.EMOJI_PATH))
-            emoji.file.inputStream().use { it.copyTo(zip) }
-            zip.closeEntry()
-        }
     }
 
     private fun packType(fonts: List<ImportedFont>): String =
