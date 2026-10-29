@@ -36,25 +36,17 @@ sealed interface KeySpec {
     /** Types [value]; long-press offers [popup] (umlauts, accents, digits, …). */
     data class Text(val value: String, val popup: List<String> = emptyList()) : KeySpec
 
-    data object Shift : KeySpec {
-        override val width = 1.5f
-    }
+    data class Shift(override val width: Float = 1.5f) : KeySpec
 
-    data object Backspace : KeySpec {
-        override val width = 1.5f
-    }
+    data class Backspace(override val width: Float = 1.5f) : KeySpec
 
     data object Enter : KeySpec {
         override val width = 1.5f
     }
 
-    data object Space : KeySpec {
-        override val width = 4f
-    }
+    data class Space(override val width: Float = 4f) : KeySpec
 
     data object Language : KeySpec
-
-    data object Emoji : KeySpec
 
     data class Page(val target: KeyboardPage, val label: String) : KeySpec {
         override val width get() = 1.5f
@@ -109,12 +101,15 @@ object KeyboardLayouts {
     private fun symbolRow(symbols: List<String>): List<KeySpec> =
         symbols.map { KeySpec.Text(it, SYMBOL_POPUPS[it].orEmpty()) }
 
-    private fun bottomRow(pageKey: KeySpec.Page): List<KeySpec> = listOf(
+    /**
+     * Bottom row filling [columns] key widths: page switch, language, comma, a wide
+     * space bar, period and enter. Emoji have their own tab in the toolbar.
+     */
+    private fun bottomRow(pageKey: KeySpec.Page, columns: Int): List<KeySpec> = listOf(
         pageKey,
         KeySpec.Language,
-        KeySpec.Emoji,
         KeySpec.Text(",", SYMBOL_POPUPS[","].orEmpty()),
-        KeySpec.Space,
+        KeySpec.Space(width = columns - 6f),
         KeySpec.Text(".", SYMBOL_POPUPS["."].orEmpty()),
         KeySpec.Enter,
     )
@@ -125,15 +120,15 @@ object KeyboardLayouts {
             symbolRow(DIGITS.map { it.toString() }),
             symbolRow(listOf("@", "#", if (language == KeyboardLanguage.GERMAN) "€" else "$", "_", "&", "-", "+", "(", ")", "/")),
             listOf<KeySpec>(KeySpec.Page(KeyboardPage.MORE_SYMBOLS, "=\\<")) +
-                symbolRow(listOf("*", "\"", "'", ":", ";", "!", "?")) + KeySpec.Backspace,
-            bottomRow(KeySpec.Page(KeyboardPage.LETTERS, "ABC")),
+                symbolRow(listOf("*", "\"", "'", ":", ";", "!", "?")) + KeySpec.Backspace(),
+            bottomRow(KeySpec.Page(KeyboardPage.LETTERS, "ABC"), columns = 10),
         )
         KeyboardPage.MORE_SYMBOLS -> listOf(
             symbolRow(listOf("~", "`", "|", "•", "√", "π", "÷", "×", "¶", "∆")),
             symbolRow(listOf("£", "¥", "$", "¢", "^", "°", "=", "{", "}", "\\")),
             listOf<KeySpec>(KeySpec.Page(KeyboardPage.SYMBOLS, "123")) +
-                symbolRow(listOf("%", "©", "®", "™", "✓", "[", "]")) + KeySpec.Backspace,
-            bottomRow(KeySpec.Page(KeyboardPage.LETTERS, "ABC")),
+                symbolRow(listOf("%", "©", "®", "™", "✓", "[", "]")) + KeySpec.Backspace(),
+            bottomRow(KeySpec.Page(KeyboardPage.LETTERS, "ABC"), columns = 10),
         )
     }
 
@@ -141,14 +136,15 @@ object KeyboardLayouts {
         KeyboardLanguage.GERMAN -> listOf(
             letterRow("qwertzuiopü", withDigits = true),
             letterRow("asdfghjklöä"),
-            listOf<KeySpec>(KeySpec.Shift) + letterRow("yxcvbnm") + KeySpec.Backspace,
-            bottomRow(KeySpec.Page(KeyboardPage.SYMBOLS, "?123")),
+            // 11 columns: wide shift and backspace fill the row like on Gboard.
+            listOf<KeySpec>(KeySpec.Shift(width = 2f)) + letterRow("yxcvbnm") + KeySpec.Backspace(width = 2f),
+            bottomRow(KeySpec.Page(KeyboardPage.SYMBOLS, "?123"), columns = 11),
         )
         KeyboardLanguage.ENGLISH -> listOf(
             letterRow("qwertyuiop", withDigits = true),
             letterRow("asdfghjkl"),
-            listOf<KeySpec>(KeySpec.Shift) + letterRow("zxcvbnm") + KeySpec.Backspace,
-            bottomRow(KeySpec.Page(KeyboardPage.SYMBOLS, "?123")),
+            listOf<KeySpec>(KeySpec.Shift()) + letterRow("zxcvbnm") + KeySpec.Backspace(),
+            bottomRow(KeySpec.Page(KeyboardPage.SYMBOLS, "?123"), columns = 10),
         )
     }
 

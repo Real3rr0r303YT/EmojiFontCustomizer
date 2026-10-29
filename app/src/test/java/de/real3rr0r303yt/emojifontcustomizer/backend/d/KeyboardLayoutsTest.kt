@@ -63,11 +63,36 @@ class KeyboardLayoutsTest {
         KeyboardLanguage.entries.forEach { language ->
             KeyboardPage.entries.forEach { page ->
                 val keys = KeyboardLayouts.rows(language, page).flatten()
-                listOf(KeySpec.Backspace, KeySpec.Enter, KeySpec.Space, KeySpec.Language, KeySpec.Emoji)
-                    .forEach { assertTrue("$language/$page misses $it", it in keys) }
+                assertTrue("$language/$page misses backspace", keys.any { it is KeySpec.Backspace })
+                assertTrue("$language/$page misses space", keys.any { it is KeySpec.Space })
+                assertTrue("$language/$page misses enter", KeySpec.Enter in keys)
+                assertTrue("$language/$page misses language", KeySpec.Language in keys)
                 assertTrue("$language/$page has no page switch", keys.any { it is KeySpec.Page })
             }
-            assertTrue(KeySpec.Shift in KeyboardLayouts.rows(language, KeyboardPage.LETTERS).flatten())
+            assertTrue(KeyboardLayouts.rows(language, KeyboardPage.LETTERS).flatten().any { it is KeySpec.Shift })
+        }
+    }
+
+    @Test
+    fun rowsAreBalanced() {
+        // Every row of a page fills the same width, except centred shorter letter rows.
+        KeyboardLanguage.entries.forEach { language ->
+            KeyboardPage.entries.forEach { page ->
+                val widths = KeyboardLayouts.rows(language, page).map { row -> row.sumOf { it.width.toDouble() } }
+                val max = widths.max()
+                widths.forEach { assertTrue("$language/$page row width $it vs $max", max - it <= 1.0) }
+                assertEquals("$language/$page bottom row", max, widths.last(), 0.001)
+            }
+        }
+    }
+
+    @Test
+    fun spaceBarIsTheWidestKey() {
+        KeyboardLanguage.entries.forEach { language ->
+            val keys = KeyboardLayouts.rows(language, KeyboardPage.LETTERS).flatten()
+            val space = keys.first { it is KeySpec.Space }.width
+            assertTrue(keys.filter { it !is KeySpec.Space }.all { it.width < space })
+            assertTrue(space >= 4f)
         }
     }
 
