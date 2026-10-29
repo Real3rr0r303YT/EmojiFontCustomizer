@@ -20,11 +20,14 @@
 package de.real3rr0r303yt.emojifontcustomizer.backend.d
 
 import android.content.ClipDescription
+import android.content.ClipboardManager
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.inputmethodservice.InputMethodService
 import android.os.Build
+import android.os.SystemClock
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.KeyEvent
@@ -48,8 +51,10 @@ import androidx.core.view.inputmethod.InputContentInfoCompat
  * (`commitContent`), emoji from the selected pack are sent as PNGs so the recipient
  * sees exactly that style; otherwise the plain Unicode emoji is inserted.
  *
- * The keyboard only inserts emoji. It never reads the text field, and the app has no
- * internet permission.
+ * A clipboard bar above the emoji shows recent clips as chips; tapping one pastes it.
+ * The history lives in memory only (see [ClipboardHistory]).
+ *
+ * The keyboard never reads the text field, and the app has no internet permission.
  */
 class EmojiKeyboardService : InputMethodService() {
 
@@ -59,6 +64,15 @@ class EmojiKeyboardService : InputMethodService() {
 
     private lateinit var categoryBar: LinearLayout
     private lateinit var statusLabel: TextView
+    private lateinit var clipScroll: HorizontalScrollView
+    private lateinit var clipBar: LinearLayout
+
+    private var clipboard: ClipboardManager? = null
+    private val clipHistory = ClipboardHistory()
+    private val clipListener = ClipboardManager.OnPrimaryClipChangedListener {
+        readClipboard()
+        refreshClipBar()
+    }
 
     private val dp get() = resources.displayMetrics.density
     private val night
@@ -68,11 +82,36 @@ class EmojiKeyboardService : InputMethodService() {
 
     override fun onEvaluateFullscreenMode(): Boolean = false
 
+    override fun onCreate() {
+        super.onCreate()
+        clipboard = getSystemService(ClipboardManager::class.java)?.apply {
+            addPrimaryClipChangedListener(clipListener)
+        }
+    }
+
+    override fun onDestroy() {
+        clipboard?.removePrimaryClipChangedListener(clipListener)
+        clipHistory.clear()
+        super.onDestroy()
+    }
+
     override fun onCreateInputView(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(bgColor)
         }
+        clipBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        clipScroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(clipBar)
+        }
+        root.addView(
+            clipScroll,
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
+        )
         categoryBar = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         root.addView(
             HorizontalScrollView(this).apply { addView(categoryBar) },
@@ -110,6 +149,8 @@ class EmojiKeyboardService : InputMethodService() {
         if (current == null || current.packFile != pack || current.packModified != (pack?.lastModified() ?: 0L)) {
             renderer = EmojiRenderer(this, pack)
         }
+        readClipboard()
+        refreshClipBar()
         buildCategoryBar()
         showCategory(categoryIndex)
         statusLabel.text = when {
@@ -118,6 +159,67 @@ class EmojiKeyboardService : InputMethodService() {
             else -> "${pack.nameWithoutExtension} · app accepts text only"
         }
     }
+
+    /**
+     * Android 10+ only lets the focused app or the default keyboard read the clipboard,
+     * so reading can fail; that is not an error.
+     */
+    private fun readClipboard() {
+        val clip = runCatching { clipboard?.primaryClip }.getOrNull() ?: return
+        if (clip.itemCount == 0) return
+        val text = clip.getItemAt(0).coerceToText(this)?.toString() ?: return
+        val sensitive = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            clip.description?.extras?.getBoolean(ClipDescription.EXTRA_IS_SENSITIVE) == true
+        clipHistory.add(text, sensitive, SystemClock.elapsedRealtime())
+    }
+
+    private fun refreshClipBar() {
+        if (!::clipBar.isInitialized) return
+        clipBar.removeAllViews()
+        val items = clipHistory.items(SystemClock.elapsedRealtime())
+        clipScroll.visibility = if (items.isEmpty()) View.GONE else View.VISIBLE
+        items.forEach { entry ->
+            clipBar.addView(chip(entry.label()).apply {
+                setOnClickListener { currentInputConnection?.commitText(entry.text, 1) }
+                setOnLongClickListener {
+                    clipHistory.remove(entry)
+                    refreshClipBar()
+                    true
+                }
+            })
+        }
+        clipBar.addView(key("🗑", "Clear clipboard") {
+            clipHistory.clear()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                runCatching { clipboard?.clearPrimaryClip() }
+            }
+            refreshClipBar()
+        })
+    }
+
+    private fun chip(label: String): TextView =
+        TextView(this).apply {
+            text = label
+            contentDescription = "Paste: $label"
+            maxLines = 1
+            setTextColor(fgColor)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            gravity = Gravity.CENTER
+            val padH = (12 * dp).toInt()
+            val padV = (8 * dp).toInt()
+            setPadding(padH, padV, padH, padV)
+            background = GradientDrawable().apply {
+                cornerRadius = 16 * dp
+                setColor(if (night) Color.rgb(0x3A, 0x3A, 0x3A) else Color.WHITE)
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            ).apply {
+                val margin = (4 * dp).toInt()
+                setMargins(margin, margin, margin, margin)
+            }
+        }
 
     private fun buildCategoryBar() {
         categoryBar.removeAllViews()

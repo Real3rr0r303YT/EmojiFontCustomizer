@@ -342,8 +342,9 @@ private fun KeyboardCard(ui: UiState, viewModel: MainViewModel) {
         Text(
             "Uses the selected emoji pack (${ui.selectedEmoji?.name ?: "none – system emoji"}). In apps that accept " +
                 "images (e.g. Telegram, Signal) emoji are sent as pictures, so others see your style. " +
-                "Elsewhere the normal emoji is inserted. The keyboard never reads what you type " +
-                "and the app has no internet access.",
+                "Elsewhere the normal emoji is inserted. Copied text appears as chips above the " +
+                "emoji (kept in memory only, passwords masked). The keyboard never reads what you " +
+                "type and the app has no internet access.",
             style = MaterialTheme.typography.bodySmall,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

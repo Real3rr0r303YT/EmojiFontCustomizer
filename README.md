@@ -14,6 +14,9 @@ It is written in Kotlin with Jetpack Compose.
 - Live preview that combines the chosen text font with the chosen emoji pack (Android 10+).
 - An **emoji keyboard** that sends emoji from your pack as images in apps that accept
   them, so recipients see your style, and inserts normal emoji everywhere else.
+- A **clipboard bar** in the keyboard: recent clips appear as chips, and one tap pastes them.
+  It is kept in memory only, sensitive clips (passwords) are masked and expire after
+  60 s, and 🗑 clears the clipboard.
 - Export and import of font packs and emoji packs.
 - Optional switching between the system's built-in font overlays through **Shizuku**
   (ADB, no root).
@@ -80,8 +83,27 @@ show the ❤ button in the top bar and on the About page. If it is empty, the bu
 # APK: app/build/outputs/apk/debug/app-debug.apk
 ```
 
-GitHub Actions builds every push and pull request. Pushing a `v*` tag attaches
-the debug APK to a GitHub release.
+GitHub Actions builds and tests every push and pull request. **Every successful
+build on `main` publishes a GitHub release** tagged `v<versionName>-build.<run>`, with
+the APK and its SHA-256 checksum attached. Pushing a `v*` tag yourself creates a
+release with that name.
+
+### Release signing (recommended)
+
+Without signing secrets, releases contain the debug APK. Its key changes on every CI
+run, so a new release will not install over an older one. To fix this, create a key
+once and keep it safe and offline:
+
+```sh
+keytool -genkeypair -v -keystore release.jks -alias emojifont \
+  -keyalg RSA -keysize 4096 -validity 10000
+base64 -w0 release.jks > release.jks.b64
+```
+
+Then add these repository secrets (Settings → Secrets and variables → Actions):
+`SIGNING_KEYSTORE_BASE64` (contents of `release.jks.b64`), `SIGNING_KEYSTORE_PASSWORD`,
+`SIGNING_KEY_ALIAS` (`emojifont`) and `SIGNING_KEY_PASSWORD`. From then on,
+releases contain the signed `release` APK. Never commit the keystore.
 
 ## Shizuku
 

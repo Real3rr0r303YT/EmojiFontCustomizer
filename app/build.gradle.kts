@@ -13,8 +13,8 @@ android {
         applicationId = "de.real3rr0r303yt.emojifontcustomizer"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.3.0"
+        versionCode = 6
+        versionName = "0.4.0"
 
         // Set `donationUrl` in gradle.properties (or with -PdonationUrl=...) to show the donate button.
         val donationUrl = providers.gradleProperty("donationUrl").getOrElse("")
@@ -22,8 +22,23 @@ android {
         buildConfigField("String", "SOURCE_URL", "\"https://github.com/Real3rr0r303YT/EmojiFontCustomizer\"")
     }
 
+    // Release signing comes from the environment (GitHub Actions secrets), never from the
+    // repository. A stable key lets new APKs install as updates over older ones.
+    val keystorePath = providers.environmentVariable("SIGNING_KEYSTORE_PATH").orNull
+    signingConfigs {
+        if (keystorePath != null) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = providers.environmentVariable("SIGNING_KEYSTORE_PASSWORD").orNull
+                keyAlias = providers.environmentVariable("SIGNING_KEY_ALIAS").orNull
+                keyPassword = providers.environmentVariable("SIGNING_KEY_PASSWORD").orNull
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (keystorePath != null) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
