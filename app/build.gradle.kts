@@ -13,8 +13,8 @@ android {
         applicationId = "de.real3rr0r303yt.emojifontcustomizer"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "0.5.1"
+        versionCode = 9
+        versionName = "0.5.2"
 
         // Set `donationUrl` in gradle.properties (or with -PdonationUrl=...) to show the donate button.
         val donationUrl = providers.gradleProperty("donationUrl").getOrElse("")

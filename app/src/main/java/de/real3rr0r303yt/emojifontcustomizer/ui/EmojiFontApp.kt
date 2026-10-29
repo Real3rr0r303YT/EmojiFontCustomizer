@@ -79,6 +79,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -104,6 +105,7 @@ import de.real3rr0r303yt.emojifontcustomizer.backend.a.InAppRendererBackend
 import de.real3rr0r303yt.emojifontcustomizer.backend.b.ThemeExportBackend
 import de.real3rr0r303yt.emojifontcustomizer.backend.c.ShizukuBackend
 import de.real3rr0r303yt.emojifontcustomizer.backend.c.ShizukuState
+import de.real3rr0r303yt.emojifontcustomizer.backend.d.KeyboardPrefs
 import de.real3rr0r303yt.emojifontcustomizer.router.RouteDecision
 import de.real3rr0r303yt.emojifontcustomizer.router.RouteRequest
 
@@ -332,6 +334,7 @@ private fun KeyboardCard(ui: UiState, viewModel: MainViewModel) {
     val imm = remember { context.getSystemService(InputMethodManager::class.java) }
     var enabled by remember { mutableStateOf(false) }
     var tryText by rememberSaveable { mutableStateOf("") }
+    var height by remember { mutableFloatStateOf(KeyboardPrefs.heightScale(context)) }
     LifecycleResumeEffect(Unit) {
         enabled = imm?.enabledInputMethodList.orEmpty().any { it.packageName == context.packageName }
         onPauseOrDispose { }
@@ -364,11 +367,23 @@ private fun KeyboardCard(ui: UiState, viewModel: MainViewModel) {
             }) { Text(if (enabled) "✓ Enabled" else "1. Enable") }
             Button(onClick = { imm?.showInputMethodPicker() }, enabled = enabled) { Text("2. Switch to it") }
         }
+        Text("Keyboard height: ${(height * 100).toInt()} %", style = MaterialTheme.typography.labelLarge)
+        Slider(
+            value = height,
+            onValueChange = { height = it },
+            onValueChangeFinished = { KeyboardPrefs.setHeightScale(context, height) },
+            valueRange = KeyboardPrefs.HEIGHT_RANGE,
+            steps = 10,
+        )
         OutlinedTextField(
             value = tryText,
             onValueChange = { tryText = it },
             label = { Text("Try the keyboard here") },
             modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            "Installed version: ${BuildConfig.VERSION_NAME}. Height changes apply the next time the keyboard opens.",
+            style = MaterialTheme.typography.bodySmall,
         )
     }
 }

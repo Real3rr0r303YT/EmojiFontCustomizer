@@ -32,6 +32,10 @@ object KeyboardPrefs {
     private const val NAME = "keyboard"
     private const val KEY_PACK = "emoji_pack"
     private const val KEY_LANGUAGE = "language"
+    private const val KEY_HEIGHT = "height_scale"
+
+    /** Range of the keyboard height setting (1.0 = default). */
+    val HEIGHT_RANGE = 0.85f..1.4f
 
     /** Stored recent emoji in versions up to 0.4.0; removed on first use. */
     private const val LEGACY_KEY_RECENT = "recent"
@@ -60,6 +64,13 @@ object KeyboardPrefs {
 
     fun setLanguage(context: Context, language: KeyboardLanguage) {
         prefs(context).edit().putString(KEY_LANGUAGE, language.name).apply()
+    }
+
+    fun heightScale(context: Context): Float =
+        prefs(context).getFloat(KEY_HEIGHT, 1f).coerceIn(HEIGHT_RANGE)
+
+    fun setHeightScale(context: Context, scale: Float) {
+        prefs(context).edit().putFloat(KEY_HEIGHT, scale.coerceIn(HEIGHT_RANGE)).apply()
     }
 
     /** Recently used emoji, newest first; kept in memory only. */

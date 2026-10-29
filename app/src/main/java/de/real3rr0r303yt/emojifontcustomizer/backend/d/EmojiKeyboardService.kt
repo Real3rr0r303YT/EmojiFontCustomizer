@@ -142,25 +142,29 @@ class EmojiKeyboardService : InputMethodService() {
 
     private fun px(value: Int) = (value * dp).toInt()
 
+    /** Height setting from the app (Keyboard card), applied when the view is built. */
+    private var heightScale = 1f
+
     /**
-     * Row height adapts to the screen: about 7.4 % of the screen height in portrait
-     * (58–68 dp, similar to Gboard/SwiftKey), flatter in landscape.
+     * Row height adapts to the screen: about 8.4 % of the screen height in portrait
+     * (64–78 dp, as tall as Gboard at its default height), flatter in landscape, then
+     * scaled by the user's height setting.
      */
     private fun rowHeightPx(): Int {
         val metrics = resources.displayMetrics
         val screenDp = metrics.heightPixels / metrics.density
         val landscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-        val rowDp = if (landscape) (screenDp * 0.11f).coerceIn(40f, 52f) else (screenDp * 0.074f).coerceIn(58f, 68f)
-        return (rowDp * metrics.density).toInt()
+        val rowDp = if (landscape) (screenDp * 0.12f).coerceIn(44f, 58f) else (screenDp * 0.084f).coerceIn(64f, 78f)
+        return (rowDp * heightScale * metrics.density).toInt()
     }
 
-    private fun rounded(color: Int, radiusDp: Float = 10f) = GradientDrawable().apply {
+    private fun rounded(color: Int, radiusDp: Float = 12f) = GradientDrawable().apply {
         cornerRadius = radiusDp * dp
         setColor(color)
     }
 
     /** Key surface with a ripple on touch. */
-    private fun keyBackground(color: Int, radiusDp: Float = 10f): Drawable =
+    private fun keyBackground(color: Int, radiusDp: Float = 12f): Drawable =
         RippleDrawable(ColorStateList.valueOf(rippleColor), rounded(color, radiusDp), rounded(Color.WHITE, radiusDp))
 
     // ---------------------------------------------------------------------
@@ -189,6 +193,7 @@ class EmojiKeyboardService : InputMethodService() {
     override fun onEvaluateFullscreenMode(): Boolean = false
 
     override fun onCreateInputView(): View {
+        heightScale = KeyboardPrefs.heightScale(this)
         popup?.dismiss()
         preview?.dismiss()
         preview = null
@@ -196,7 +201,7 @@ class EmojiKeyboardService : InputMethodService() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(bgColor)
-            setPadding(px(3), px(2), px(3), px(6))
+            setPadding(px(4), px(4), px(4), px(10))
         }
 
         // Toolbar: three icon tabs, and a paste pill only right after copying something.
@@ -211,7 +216,7 @@ class EmojiKeyboardService : InputMethodService() {
         ).map { (target, iconAndLabel) ->
             val (icon, label) = iconAndLabel
             target to iconButton(icon, label) { showPanel(target) }.also {
-                toolbar.addView(it, LinearLayout.LayoutParams(px(56), px(40)).apply { setMargins(px(2), 0, px(2), 0) })
+                toolbar.addView(it, LinearLayout.LayoutParams(px(60), px(44)).apply { setMargins(px(2), 0, px(2), 0) })
             }
         }
         toolbar.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
@@ -235,10 +240,10 @@ class EmojiKeyboardService : InputMethodService() {
             }, LinearLayout.LayoutParams(px(18), px(18)).apply { marginEnd = px(8) })
             addView(clipPillText)
         }
-        toolbar.addView(clipPill, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, px(36)).apply {
+        toolbar.addView(clipPill, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, px(38)).apply {
             marginEnd = px(4)
         })
-        root.addView(toolbar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, px(48)))
+        root.addView(toolbar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, px(52)))
 
         // Panels share one fixed height so switching never makes the keyboard jump.
         val content = FrameLayout(this)
@@ -260,6 +265,8 @@ class EmojiKeyboardService : InputMethodService() {
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
+        // The height was changed in the app since the view was built: rebuild it.
+        if (KeyboardPrefs.heightScale(this) != heightScale) setInputView(onCreateInputView())
         val pack = KeyboardPrefs.emojiPack(this)
         val current = renderer
         if (current == null || current.packFile != pack || current.packModified != (pack?.lastModified() ?: 0L)) {
@@ -274,7 +281,7 @@ class EmojiKeyboardService : InputMethodService() {
             }
         }
         emojiStatus.text = when {
-            pack == null -> "System emoji"
+            pack == null -> ""
             acceptsImages(info) -> "${pack.nameWithoutExtension} · image"
             else -> "${pack.nameWithoutExtension} · text"
         }
@@ -348,11 +355,11 @@ class EmojiKeyboardService : InputMethodService() {
 
     private fun keyParams(weight: Float) =
         LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, weight).apply {
-            setMargins(px(3), px(5), px(3), px(5))
+            setMargins(px(3), px(6), px(3), px(6))
         }
 
     private fun keyFor(spec: KeySpec): View = when (spec) {
-        is KeySpec.Text -> key(spec.value, keyColor, textSp = 24f) { typeText(spec.value) }.also { view ->
+        is KeySpec.Text -> key(spec.value, keyColor, textSp = 26f) { typeText(spec.value) }.also { view ->
             letterKeys += view to spec
             attachPreview(view)
             if (spec.popup.isNotEmpty()) {
@@ -370,7 +377,7 @@ class EmojiKeyboardService : InputMethodService() {
             repeatingDelete(it)
         }
         KeySpec.Enter -> iconKey(enterIcon(), accentColor, "Enter", tint = Color.WHITE) { enter() }
-        is KeySpec.Space -> key(language.label, keyColor, textSp = 13f, description = "Space") { typeText(" ") }.apply {
+        is KeySpec.Space -> key(language.label, keyColor, textSp = 14f, description = "Space") { typeText(" ") }.apply {
             setTextColor(mutedColor)
         }
         KeySpec.Language -> iconKey(R.drawable.ic_kb_globe, specialKeyColor, "Language: ${language.label}") {
@@ -384,7 +391,7 @@ class EmojiKeyboardService : InputMethodService() {
                 true
             }
         }
-        is KeySpec.Page -> key(spec.label, specialKeyColor, textSp = 15f) {
+        is KeySpec.Page -> key(spec.label, specialKeyColor, textSp = 16f) {
             page = spec.target
             buildLetters()
         }.apply { typeface = labelTypeface }
@@ -454,7 +461,7 @@ class EmojiKeyboardService : InputMethodService() {
             includeFontPadding = false
             typeface = keyTypeface
             setTextColor(fgColor)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 34f)
             background = rounded(specialKeyColor, radiusDp = 12f)
             elevation = 6 * dp
         }.also { previewText = it }
@@ -579,11 +586,11 @@ class EmojiKeyboardService : InputMethodService() {
         }
         options.forEach { option ->
             row.addView(
-                key(KeyboardLayouts.applyShift(option, shift.isUpper), keyColor, textSp = 24f) {
+                key(KeyboardLayouts.applyShift(option, shift.isUpper), keyColor, textSp = 26f) {
                     typeText(option)
                     popupWindow.dismiss()
                 },
-                LinearLayout.LayoutParams(px(44), px(54)).apply { setMargins(px(2), 0, px(2), 0) },
+                LinearLayout.LayoutParams(px(48), px(60)).apply { setMargins(px(2), 0, px(2), 0) },
             )
         }
         row.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
@@ -606,11 +613,11 @@ class EmojiKeyboardService : InputMethodService() {
                 isHorizontalScrollBarEnabled = false
                 addView(emojiCategoryBar)
             },
-            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, px(44)),
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, px(48)),
         )
         val grid = GridView(this).apply {
             numColumns = GridView.AUTO_FIT
-            columnWidth = px(50)
+            columnWidth = px(54)
             stretchMode = GridView.STRETCH_COLUMN_WIDTH
             verticalSpacing = px(2)
             selector = keyBackground(Color.TRANSPARENT)
@@ -729,8 +736,8 @@ class EmojiKeyboardService : InputMethodService() {
             val view = convertView as? TextView ?: TextView(this@EmojiKeyboardService).apply {
                 gravity = Gravity.CENTER
                 includeFontPadding = false
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 30f)
-                layoutParams = AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, px(50))
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 32f)
+                layoutParams = AbsListView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, px(56))
             }
             view.typeface = typeface ?: Typeface.DEFAULT
             view.text = items[position]
