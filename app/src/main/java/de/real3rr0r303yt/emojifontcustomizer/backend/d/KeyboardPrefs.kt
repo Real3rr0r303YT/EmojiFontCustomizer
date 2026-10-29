@@ -35,7 +35,7 @@ object KeyboardPrefs {
     private const val KEY_HEIGHT = "height_scale"
 
     /** Range of the keyboard height setting (1.0 = default). */
-    val HEIGHT_RANGE = 0.85f..1.4f
+    val HEIGHT_RANGE = 0.7f..1.3f
 
     /** Stored recent emoji in versions up to 0.4.0; removed on first use. */
     private const val LEGACY_KEY_RECENT = "recent"

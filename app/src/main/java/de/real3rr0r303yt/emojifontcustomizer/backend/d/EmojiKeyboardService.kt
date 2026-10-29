@@ -56,6 +56,8 @@ import android.widget.PopupWindow
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.core.content.FileProvider
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.core.view.inputmethod.InputConnectionCompat
 import androidx.core.view.inputmethod.InputContentInfoCompat
@@ -146,15 +148,15 @@ class EmojiKeyboardService : InputMethodService() {
     private var heightScale = 1f
 
     /**
-     * Row height adapts to the screen: about 8.4 % of the screen height in portrait
-     * (64–78 dp, as tall as Gboard at its default height), flatter in landscape, then
-     * scaled by the user's height setting.
+     * Row height adapts to the screen: about 8.8 % of the screen height in portrait
+     * (68–84 dp; with the toolbar the keyboard covers about 42 % of the screen like
+     * Gboard), flatter in landscape, then scaled by the user's height setting.
      */
     private fun rowHeightPx(): Int {
         val metrics = resources.displayMetrics
         val screenDp = metrics.heightPixels / metrics.density
         val landscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-        val rowDp = if (landscape) (screenDp * 0.12f).coerceIn(44f, 58f) else (screenDp * 0.084f).coerceIn(64f, 78f)
+        val rowDp = if (landscape) (screenDp * 0.13f).coerceIn(46f, 62f) else (screenDp * 0.088f).coerceIn(68f, 84f)
         return (rowDp * heightScale * metrics.density).toInt()
     }
 
@@ -202,6 +204,13 @@ class EmojiKeyboardService : InputMethodService() {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(bgColor)
             setPadding(px(4), px(4), px(4), px(10))
+        }
+        // Edge-to-edge (Android 15+): keep the bottom row above the gesture/navigation bar
+        // instead of letting the bar cover it.
+        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+            val navBar = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            view.setPadding(px(4), px(4), px(4), px(10) + navBar)
+            insets
         }
 
         // Toolbar: three icon tabs, and a paste pill only right after copying something.

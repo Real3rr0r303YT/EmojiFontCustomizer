@@ -373,7 +373,7 @@ private fun KeyboardCard(ui: UiState, viewModel: MainViewModel) {
             onValueChange = { height = it },
             onValueChangeFinished = { KeyboardPrefs.setHeightScale(context, height) },
             valueRange = KeyboardPrefs.HEIGHT_RANGE,
-            steps = 10,
+            steps = 11,
         )
         OutlinedTextField(
             value = tryText,

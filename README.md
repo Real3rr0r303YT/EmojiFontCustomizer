@@ -33,6 +33,54 @@ It is written in Kotlin with Jetpack Compose.
 - No internet permission. The keyboard never reads what you type.
 - An in-app *Open Source / GPL-3.0* page with the full license text, and an optional donate button.
 
+## Quick start
+
+### 1. Download and install the APK
+
+1. Open the **[latest release](https://github.com/Real3rr0r303YT/EmojiFontCustomizer/releases/latest)**
+   and download `EmojiFontCustomizer-….apk`. Every successful build on `main`
+   publishes a new release automatically.
+2. Optional: check the file against the `.apk.sha256` next to it
+   (`sha256sum -c EmojiFontCustomizer-….apk.sha256`).
+3. Open the APK on your phone and allow installing from this source when Android asks.
+
+> **Updating:** if Android says *"App not installed"*, the new APK was signed with a
+> different key (see [Release signing](#release-signing-recommended)). Uninstall the
+> old version first, then import your fonts again. In the app, the keyboard card under
+> **Emoji** shows the installed version.
+
+### 2. Import your own emoji font (e.g. `iosemojis.ttf`)
+
+The app does not ship any emoji font (see [iOS-style emoji](#ios-style-emoji)). You
+bring your own file:
+
+1. Copy the font (`.ttf`, `.otf` or `.ttc`, e.g. `iosemojis.ttf`) to your phone,
+   for example into *Downloads*.
+2. Open **Emoji Font Customizer** → **Emoji** tab → **Import emoji** and pick the file.
+3. The app detects it as an emoji pack and lists it under *Emoji packs*. Tap it to
+   select it. The preview grid, and from now on the keyboard, use this pack.
+
+Android needs color emoji in **CBDT** or **COLR** format. Apple's original `.ttc`
+(`sbix`) cannot be shown, and the app warns you about such files.
+
+### 3. Set up the keyboard
+
+1. In the app, open the **Emoji** tab and go to the **Keyboard** card.
+2. Tap **1. Enable**. Android's keyboard settings open: switch on
+   **Emoji Font Keyboard**. Android shows its standard warning that keyboards can read
+   what you type. This keyboard stores nothing and has no internet permission (see
+   [Privacy](#privacy)).
+3. Tap **2. Switch to it**, or long-press 🌐 in any keyboard, and choose
+   **Emoji Font Keyboard**.
+4. Try it in the test field on the card. Adjust **Keyboard height** if you like
+   (70–130 %).
+5. Using it:
+   - **⌨ / 😀 / 📋** at the top switch between letters, emoji and clipboard.
+   - **🌐** switches QWERTZ (Deutsch) / QWERTY (English). Long-press 🌐 for other keyboards.
+   - Long-press letters for umlauts, accents and digits. `?123` opens numbers and symbols.
+   - Double-tap shift for caps lock.
+6. Once you are happy with it, you can disable or uninstall Gboard.
+
 - **Package:** `de.real3rr0r303yt.emojifontcustomizer`
 - **minSdk:** 26 (Android 8.0) · **targetSdk:** 35
 
@@ -78,6 +126,15 @@ Android cannot render; the app detects such files and shows a warning. Any
 iOS-style emoji font in an Android format (CBDT/COLR `.ttf`) can be imported from
 the device, previewed and used in the emoji keyboard like any other emoji pack. Free alternatives are linked in the
 app: Noto Color Emoji (OFL-1.1), Twemoji (CC-BY-4.0) and OpenMoji (CC-BY-SA-4.0).
+
+## Privacy
+
+- No `INTERNET` permission. It is removed from the merged manifest, so neither the
+  app nor the keyboard can reach the network.
+- No suggestions, no dictionary and no learning. Nothing typed is stored or read back.
+- Clipboard history and recent emoji are kept in memory only. Shared emoji images get
+  random names and are deleted after 2 minutes.
+- Only settings are stored: layout language, selected emoji pack and keyboard height.
 
 ## Donations
 
