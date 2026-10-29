@@ -22,15 +22,26 @@ package de.real3rr0r303yt.emojifontcustomizer.backend.d
 import android.content.Context
 import java.io.File
 
-/** Settings shared between the app and the keyboard (same process, private storage). */
+/**
+ * Settings shared between the app and the keyboard (same process, private storage).
+ *
+ * Only configuration is stored (emoji pack, layout language). Nothing about what is
+ * typed, pasted or picked is written to disk: recent emoji live in memory only.
+ */
 object KeyboardPrefs {
     private const val NAME = "keyboard"
     private const val KEY_PACK = "emoji_pack"
-    private const val KEY_RECENT = "recent"
-    private const val SEPARATOR = "\u001F"
+    private const val KEY_LANGUAGE = "language"
+
+    /** Stored recent emoji in versions up to 0.4.0; removed on first use. */
+    private const val LEGACY_KEY_RECENT = "recent"
     private const val MAX_RECENT = 32
 
-    private fun prefs(context: Context) = context.getSharedPreferences(NAME, Context.MODE_PRIVATE)
+    private val recentEmoji = ArrayDeque<String>()
+
+    private fun prefs(context: Context) = context.getSharedPreferences(NAME, Context.MODE_PRIVATE).also {
+        if (it.contains(LEGACY_KEY_RECENT)) it.edit().remove(LEGACY_KEY_RECENT).apply()
+    }
 
     /** The emoji pack the keyboard renders with, or null for system emoji. */
     fun emojiPack(context: Context): File? =
@@ -42,11 +53,21 @@ object KeyboardPrefs {
         }.apply()
     }
 
-    fun recent(context: Context): List<String> =
-        prefs(context).getString(KEY_RECENT, "").orEmpty().split(SEPARATOR).filter { it.isNotEmpty() }
+    fun language(context: Context): KeyboardLanguage =
+        prefs(context).getString(KEY_LANGUAGE, null)
+            ?.let { name -> KeyboardLanguage.entries.firstOrNull { it.name == name } }
+            ?: KeyboardLanguage.GERMAN
 
-    fun addRecent(context: Context, emoji: String) {
-        val list = (listOf(emoji) + recent(context).filter { it != emoji }).take(MAX_RECENT)
-        prefs(context).edit().putString(KEY_RECENT, list.joinToString(SEPARATOR)).apply()
+    fun setLanguage(context: Context, language: KeyboardLanguage) {
+        prefs(context).edit().putString(KEY_LANGUAGE, language.name).apply()
+    }
+
+    /** Recently used emoji, newest first; kept in memory only. */
+    fun recent(): List<String> = recentEmoji.toList()
+
+    fun addRecent(emoji: String) {
+        recentEmoji.remove(emoji)
+        recentEmoji.addFirst(emoji)
+        while (recentEmoji.size > MAX_RECENT) recentEmoji.removeLast()
     }
 }

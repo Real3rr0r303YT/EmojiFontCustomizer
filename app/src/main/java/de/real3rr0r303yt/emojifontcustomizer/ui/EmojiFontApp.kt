@@ -337,14 +337,23 @@ private fun KeyboardCard(ui: UiState, viewModel: MainViewModel) {
         onPauseOrDispose { }
     }
 
-    InfoCard("Emoji keyboard · no root needed") {
+    InfoCard("Keyboard · no root, fully offline") {
         RouteBanner(viewModel.route(RouteRequest.APPLY_EMOJI_SYSTEM))
         Text(
-            "Uses the selected emoji pack (${ui.selectedEmoji?.name ?: "none – system emoji"}). In apps that accept " +
-                "images (e.g. Telegram, Signal) emoji are sent as pictures, so others see your style. " +
-                "Elsewhere the normal emoji is inserted. Copied text appears as chips above the " +
-                "emoji (kept in memory only, passwords masked). The keyboard never reads what you " +
-                "type and the app has no internet access.",
+            "A complete keyboard: German QWERTZ and English QWERTY (🌐 switches, long-press 🌐 for " +
+                "other keyboards), umlauts and accents on long-press, numbers and symbols (?123). " +
+                "Use the ⌨ 😀 📋 tabs to switch between letters, emoji and clipboard.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Text(
+            "Emoji use the selected pack (${ui.selectedEmoji?.name ?: "none – system emoji"}). In apps that accept " +
+                "images (e.g. Telegram, Signal) they are sent as pictures, so others see your style; " +
+                "elsewhere the normal emoji is inserted.",
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Text(
+            "Privacy: no internet permission, no suggestions, no dictionary, no learning. Nothing " +
+                "you type, paste or pick is stored; clipboard history and recent emoji stay in memory only.",
             style = MaterialTheme.typography.bodySmall,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

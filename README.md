@@ -12,11 +12,21 @@ It is written in Kotlin with Jetpack Compose.
 - Text fonts and emoji packs are managed separately. Emoji fonts are detected
   automatically from their color tables (`CBDT`, `COLR`, `sbix`, `SVG`).
 - Live preview that combines the chosen text font with the chosen emoji pack (Android 10+).
-- An **emoji keyboard** that sends emoji from your pack as images in apps that accept
-  them, so recipients see your style, and inserts normal emoji everywhere else.
-- A **clipboard bar** in the keyboard: recent clips appear as chips, and one tap pastes them.
-  It is kept in memory only, sensitive clips (passwords) are masked and expire after
-  60 s, and 🗑 clears the clipboard.
+- A **complete, offline keyboard** that can replace Gboard:
+  - German QWERTZ and English/international QWERTY. 🌐 switches the layout;
+    long-press 🌐 opens the system keyboard picker.
+  - Umlauts, accents, ß and digits on long-press. Number/symbol pages (`?123`, `=\<`),
+    Shift with caps lock (double-tap), auto-capitalisation, repeating backspace, and an
+    Enter key that follows the field's action (send, search, next …).
+  - The ⌨ / 😀 / 📋 tabs switch between letters, emoji and clipboard.
+  - **Emoji** come from your pack and are sent as images in apps that accept them, so
+    recipients see your style. Everywhere else the normal emoji is inserted.
+  - **Clipboard**: recent clips appear as chips and in their own panel, and one tap
+    pastes them. They are kept in memory only, sensitive clips (passwords) are masked
+    and expire after 60 s, and 🗑 clears the clipboard.
+  - **Privacy**: no suggestions, no dictionary, no learning, and no network. Nothing you
+    type, paste or pick is written to disk. Only settings (layout language, emoji pack)
+    are stored.
 - Export and import of font packs and emoji packs.
 - Optional switching between the system's built-in font overlays through **Shizuku**
   (ADB, no root).
@@ -36,7 +46,7 @@ one for each request based on the live Shizuku state (`RoutingPolicy`):
 | **A · In-App Renderer** | `backend.a` | Imports `.ttf` / `.otf` / `.ttc` files and sorts them into text fonts and emoji packs (`FontInspector`). Renders them in Compose through `Typeface` → `FontFamily`, chaining text font and emoji pack with `Typeface.CustomFallbackBuilder`. |
 | **B · OEM / Theme Export** | `backend.b` | Builds portable font/emoji packs (`font-pack.json` plus `fonts/`, zipped) and imports them again. |
 | **C · Shizuku & Shell Overlays** | `backend.c` | Tracks the Shizuku binder and permission state. When Shizuku is active it runs validated shell commands such as `cmd overlay enable-exclusive --category …`, `cmd overlay disable …` and `cmd font dump`. |
-| **D · Emoji keyboard** | `backend.d` | An `InputMethodService` that renders the selected emoji pack. In apps that accept images it sends PNGs through `commitContent` and a `FileProvider`; otherwise it inserts the Unicode emoji. |
+| **D · Keyboard** | `backend.d` | A full `InputMethodService`: text layouts (`KeyboardLayouts`, `ShiftController`), an emoji panel using the selected emoji pack, and the clipboard (`ClipboardHistory`). Emoji are sent as PNGs through `commitContent` and a `FileProvider` where the app accepts them, otherwise as Unicode. |
 
 | Request | Shizuku ready | Shizuku not ready |
 |---|---|---|

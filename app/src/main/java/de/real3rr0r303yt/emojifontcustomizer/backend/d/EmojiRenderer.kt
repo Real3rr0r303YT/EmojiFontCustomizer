@@ -28,6 +28,7 @@ import android.icu.lang.UCharacter
 import android.icu.lang.UProperty
 import android.os.Build
 import java.io.File
+import java.util.UUID
 
 /**
  * Backend D: renders emoji from the selected pack, both for the keyboard grid and
@@ -64,13 +65,17 @@ class EmojiRenderer(private val context: Context, val packFile: File?) {
         return EmojiCatalog.toEmoji(codePoint).takeIf { paint.hasGlyph(it) }
     }
 
-    /** Renders [emoji] into a cached, transparent PNG of [sizePx]² pixels. */
+    /**
+     * Renders [emoji] into a transparent PNG of [sizePx]² pixels for the target app.
+     *
+     * Privacy: files get random names (nothing reveals which emoji was sent) and are
+     * deleted once older than [SHARED_FILE_TTL_MS], which leaves the receiving app
+     * enough time to read them.
+     */
     fun renderPng(emoji: String, sizePx: Int = 256): File {
         val dir = File(context.cacheDir, CACHE_DIR).apply { mkdirs() }
-        val packKey = Integer.toHexString("${packFile?.absolutePath}:$packModified".hashCode())
-        val name = emoji.codePoints().toArray().joinToString("-") { Integer.toHexString(it) }
-        val file = File(dir, "${name}_$packKey.png")
-        if (file.isFile) return file
+        deleteOldFiles(dir)
+        val file = File(dir, "${UUID.randomUUID()}.png")
 
         val p = Paint(paint).apply { textSize = sizePx * 0.8f }
         val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
@@ -84,5 +89,15 @@ class EmojiRenderer(private val context: Context, val packFile: File?) {
     companion object {
         /** Must match res/xml/emoji_paths.xml. */
         const val CACHE_DIR = "emoji"
+
+        const val SHARED_FILE_TTL_MS = 2 * 60 * 1000L
+
+        /** Removes shared emoji images older than [maxAgeMs] (all of them with 0). */
+        fun deleteOldFiles(dir: File, maxAgeMs: Long = SHARED_FILE_TTL_MS) {
+            val cutoff = System.currentTimeMillis() - maxAgeMs
+            dir.listFiles()?.filter { it.isFile && it.lastModified() <= cutoff }?.forEach { it.delete() }
+        }
+
+        fun cacheDir(context: Context) = File(context.cacheDir, CACHE_DIR)
     }
 }
