@@ -50,7 +50,9 @@ app: Noto Color Emoji (OFL-1.1), Twemoji (CC-BY-4.0) and OpenMoji (CC-BY-SA-4.0)
 
 ## Donations
 
-Set `donationUrl` in `gradle.properties` (PayPal.me, Buy Me a Coffee, Ko-fi, …) to
+Support development on [Buy Me a Coffee](https://buymeacoffee.com/Real3rr0r303YT) ☕
+
+Forks can set `donationUrl` in `gradle.properties` (PayPal.me, Buy Me a Coffee, Ko-fi, …) to
 show the ❤ button in the top bar and on the About page. If it is empty, the button is hidden.
 
 ## Building
