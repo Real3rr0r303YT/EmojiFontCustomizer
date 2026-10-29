@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Face -->
+    <path
+        android:fillColor="#5D4037"
+        android:pathData="M54,30a24,24 0,1 1,0 48a24,24 0,1 1,0 -48z M54,34a20,20 0,1 0,0 40a20,20 0,1 0,0 -40z" />
+    <!-- Eyes -->
+    <path
+        android:fillColor="#5D4037"
+        android:pathData="M46,46a3,3 0,1 1,0 6a3,3 0,1 1,0 -6z M62,46a3,3 0,1 1,0 6a3,3 0,1 1,0 -6z" />
+    <!-- Smile -->
+    <path
+        android:fillColor="#5D4037"
+        android:pathData="M42,58h4a8,8 0,0 0,16 0h4a12,12 0,0 1,-24 0z" />
+</vector>
