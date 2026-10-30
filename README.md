@@ -196,3 +196,7 @@ SPDX-License-Identifier: `GPL-3.0-or-later`
 ---
 
 <p align="center"><b>Made by <a href="https://github.com/Real3rr0r303YT">Real3rr0r303YT</a></b></p>
+
+---
+
+Made by **Real3rr0r303YT** · Licensed under the [GNU GPL-3.0](LICENSE)

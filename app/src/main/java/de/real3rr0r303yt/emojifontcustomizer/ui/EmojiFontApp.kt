@@ -626,6 +626,7 @@ private fun AboutScreen() {
     ScrollColumn {
         Text("Emoji Font Customizer", style = MaterialTheme.typography.headlineSmall)
         Text("Version ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.labelLarge)
+        Text("Made by Real3rr0r303YT", style = MaterialTheme.typography.bodyMedium)
 
         InfoCard("Free & open source · GPL-3.0") {
             Text(
