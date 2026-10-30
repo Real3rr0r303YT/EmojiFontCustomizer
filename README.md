@@ -138,7 +138,7 @@ app: Noto Color Emoji (OFL-1.1), Twemoji (CC-BY-4.0) and OpenMoji (CC-BY-SA-4.0)
 
 ## Donations
 
-Support development on [Buy Me a Coffee](https://buymeacoffee.com/Real3rr0r303YT) ☕
+Support development on [Buy Me a Coffee](https://buymeacoffee.com/3rr0r303YT) ☕
 
 Forks can set `donationUrl` in `gradle.properties` (PayPal.me, Buy Me a Coffee, Ko-fi, …) to
 show the ❤ button in the top bar and on the About page. If it is empty, the button is hidden.
@@ -192,3 +192,7 @@ WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 PARTICULAR PURPOSE. See the [LICENSE](LICENSE) file for the full text.
 
 SPDX-License-Identifier: `GPL-3.0-or-later`
+
+---
+
+<p align="center"><b>Made by <a href="https://github.com/Real3rr0r303YT">Real3rr0r303YT</a></b></p>
